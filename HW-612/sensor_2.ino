@@ -18,21 +18,5 @@ void setup() {
 
 int count;
 void loop() {
-  if(count < 5){
-    if (mySensor.accelUpdate() == 0)
-    {
-      aX = mySensor.accelX();
-      ax2 += aX * 100;
-//      Serial.print(" AclXXX: " + String(aX * 100));
-//      Serial.println("");   
-    }  
-  }
-  else{
-    ax2 /= count;
-    Serial.println("Mean acl: " + String(ax2));
-    count = 0;
-  }
-  
-  count++;
-  
+  Serial.println(String(getAccel()));
 }
