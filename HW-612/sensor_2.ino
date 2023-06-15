@@ -1,8 +1,6 @@
 #include <MPU9250_asukiaaa.h>
 #include <Adafruit_BMP280.h>
 
-Adafruit_BMP280 bme; // I2C
-MPU9250_asukiaaa mySensor;
 float aX, ax2;
 
 void setup() {
@@ -10,11 +8,7 @@ void setup() {
 
   Serial.println("Porta serial ligada!");
 
-  Wire.begin();
-  mySensor.setWire(&Wire);
-
-  bme.begin();
-  mySensor.beginAccel();
+  setupSensor();
   
   // You can set your own offset for mag values
   // mySensor.magXOffset = -50;
