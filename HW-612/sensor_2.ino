@@ -1,4 +1,7 @@
+#include <MPU9250_asukiaaa.h>
+
 float gX, gx2,aX, ax2;
+MPU9250_asukiaaa mySensor;
 
 void setup() {
   Serial.begin(9600);
