@@ -1,25 +1,47 @@
 #include <SoftwareSerial.h>
-    
-//Define os pinos para a serial   
-SoftwareSerial mySerial(10, 11); // RX, TX  
-char command = ""; // Stores response of bluetooth device  
-            // which simply allows n between each  
-            // response.  
-    
+      
+SoftwareSerial mySerial(10, 11); 
+
+bool paraFrente = false;
+bool paraTras = false;
+bool paraDireita = false;
+bool paraEsquerda = false;
+
 void setup()   
-{  
-  //Inicia a serial  
+{    
   Serial.begin(115200);  
-  //Inicia a serial configurada nas portas 10 e 11
   mySerial.begin(38400);  
 }  
     
 void loop()  
-{  
-  // Read device output if available.  
+{   
+  char value;
+ 
   if (mySerial.available()>0) 
-  {  
-    command = mySerial.read();
-    Serial.println(command);
-  }
-}
+  {
+    value = mySerial.read();
+    Serial.println(value);
+    switch (value)
+    {
+      case '1':  
+        paraFrente = true;
+        Serial.println("foi");
+      break;
+      
+      case '2':
+        paraTras = true;
+        Serial.println("foi tras");
+      break;
+        
+      case '3':
+        paraDireita = true;
+        Serial.println("foi dir");
+      break;
+
+      case '4':
+        paraEsquerda = true;
+        Serial.println("foi esq");
+      break;
+    }  
+  }  
+ }
