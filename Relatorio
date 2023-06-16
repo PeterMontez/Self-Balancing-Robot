@@ -1,0 +1,12 @@
+Grupo: Emanuelly B. da Silva | Peterson Montez | Nycollas 
+
+Uma aplicação prática para o projeto, uma especulação do possível
+- Fazer o transporte de componentes dentro de uma empresa, evitando trabalho manual.
+Os materiais necessários para o projeto
+- Ponte H, 2 Motores DC, Jumpers, MDF (para impressão das peças), Sensor giroscópio, Módulo HC05, 2 resistores de 220, um Arduino Uno e um Power Bank.
+
+Roteiro dos problemas
+-  Encontrar um módulo de bluetooth que funcionasse e configurá-lo para que funcionasse da maneira correta.
+- Ajuste do código PDI (responsável pelo o Self-Balancing do robô)
+-  Internet de má qualidade, assim, atrasando o desenvolvimento do projeto.
+- Encontrar componentes que funcionassem e conseguir regular para que eles retornassem valores precisos.
