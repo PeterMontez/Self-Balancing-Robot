@@ -1,18 +1,28 @@
 #include <MPU9250_asukiaaa.h>
-#include <Adafruit_BMP280.h>
 
 void setupSensor(){
-
-  Adafruit_BMP280 bme; // I2C
-  MPU9250_asukiaaa mySensor;
   
   Wire.begin();
   mySensor.setWire(&Wire);
 
-  bme.begin();
   mySensor.beginAccel();
+  mySensor.beginGyro();
+}
+
+float getGyro(){
+  if(mySensor.accelUpdate() == 0){
+    for(int i=0; i<5;i++){
+      gX += (mySensor.accelX() * 100);
+    }  
+  }
+  return (gX /= 5);
 }
 
 int getAccel(){
-  
+  if(mySensor.gyroUpdate() == 0){
+    for(int i=0; i<5;i++){
+      aX += (mySensor.gyroX() * 100);
+    }  
+  }
+  return (aX /= 5);
 }
