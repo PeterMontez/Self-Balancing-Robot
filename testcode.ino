@@ -1,179 +1,223 @@
 #include "I2Cdev.h"
-#include <PID_v1.h> //From https://github.com/br3ttb/Arduino-PID-Library/blob/master/PID_v1.h
-#include "MPU6050_6Axis_MotionApps20.h" //https://github.com/jrowberg/i2cdevlib/tree/master/Arduino/MPU6050
+#include <PID_v1.h>                     // https://github.com/br3ttb/Arduino-PID-Library/blob/master/PID_v1.h
+#include "MPU6050_6Axis_MotionApps20.h" // https://github.com/jrowberg/i2cdevlib/tree/master/Arduino/MPU6050
 
-MPU6050 mpu;
+MPU6050 mpu;    // Creates the mpu object
 
-bool dmpReady = false; 
-uint8_t mpuIntStatus; 
-uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
-uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
+bool dmpReady = false; // Inicialize variable as false, to check later if the gyro initialized correctly
+
+uint8_t mpuIntStatus;
+uint8_t devStatus;      // not in use, but 0 means working, !0 means error
+uint16_t packetSize;    // default DMP packet size (42 bytes)
 uint16_t fifoCount;     // count of all bytes currently in FIFO
 uint8_t fifoBuffer[64]; // FIFO storage buffer
 
-// orientation/motion vars
-Quaternion q;           // [w, x, y, z]         quaternion container
-VectorFloat gravity;    // [x, y, z]            gravity vector
-float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+// Orientation / Moves
+Quaternion q;        // [w, x, y, z]         quaternion container
+VectorFloat gravity; // [x, y, z]            gravity vector
+float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
-/*********Tune these 4 values for your BOT*********/
+// -----------  PID CONTROL / MOTOR ATENUATION  -----------
 
-double setpoint= 179; //set the value when the bot is perpendicular to ground using //////Serial monitor. 
-//Read the project documentation on circuitdigest.com to learn how to set these values
+double setpoint = 179; // Angle in wich the robot stays perfectly ballanced
 
-double Kp = 14; //Set this first
+double Kp = 14; // Proporcional constant
 
-double Kd = 0.005; //Set this secound
+double Kd = 0.005; // Derivative constant
 
-double Ki = 9; //Finally set this 
+double Ki = 9; // Integral constant
 
-/******End of values setting*********/
+double atenuation = 5;  // Baseline power to the motors
 
-double input, output;
+// -----------  PID declaration  -----------
+
+double input, output, move;
 
 PID pid(&input, &output, &setpoint, Kp, Ki, Kd, DIRECT);
 
-volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
+volatile bool mpuInterrupt = false; // detects if MPU interrupt pin is high
+
+// -----------  Interrupt Function  -----------
 
 void dmpDataReady()
 {
     mpuInterrupt = true;
 }
 
-void setup() {
-    mpu.initialize();
-    while(mpu.dmpInitialize() != 0){
-      mpu.initialize();
-       devStatus = mpu.dmpInitialize();
+// -----------  Main code Setup  -----------
+
+void setup()
+{
+    mpu.initialize();   // initializes the sensor
+
+    while (mpu.dmpInitialize() != 0)    // keeps trying to init the sensor until it works
+    {
+        mpu.initialize();
+        devStatus = mpu.dmpInitialize();    // sets the status to not 0
     }
 
     devStatus = mpu.dmpInitialize();
 
-    // supply your own gyro offsets here, scaled for min sensitivity
+    // -----------  Gyro offsets  -----------
 
     mpu.setXGyroOffset(220);
     mpu.setYGyroOffset(76);
     mpu.setZGyroOffset(-85);
-    mpu.setZAccelOffset(1688); 
+    mpu.setZAccelOffset(1688);
 
-      // make sure it worked (returns 0 if so)
+    // make sure everything is working
 
     if (devStatus == 0)
     {
-        // turn on the DMP, now that it's ready
+        // turn DMP on
         mpu.setDMPEnabled(true);
 
         // enable Arduino interrupt detection
         attachInterrupt(0, dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
 
-        // set our DMP Ready flag so the main loop() function knows it's okay to use it
+        // set DMP flag to true
         dmpReady = true;
 
-        // get expected DMP packet size for later comparison
+        // get mpu packetsize
         packetSize = mpu.dmpGetFIFOPacketSize();
-     
-        //setup PID
 
+        // setup PID
         pid.SetMode(AUTOMATIC);
         pid.SetSampleTime(15);
-        pid.SetOutputLimits(-255, 255);  
-
+        pid.SetOutputLimits(-255, 255);
     }
 
-    pinMode (6, OUTPUT);
-    pinMode (9, OUTPUT);
-    pinMode (10, OUTPUT);
-    pinMode (11, OUTPUT);
+    // -----------  Motor pins setup  -----------
 
-    analogWrite(6,LOW);
-    analogWrite(9,LOW);
-    analogWrite(10,LOW);
-    analogWrite(11,LOW);
+    pinMode(6, OUTPUT);
+    pinMode(9, OUTPUT);
+    pinMode(10, OUTPUT);
+    pinMode(11, OUTPUT);
+
+    // -----------  Making sure motors initialize on LOW  -----------
+
+    analogWrite(6, LOW);
+    analogWrite(9, LOW);
+    analogWrite(10, LOW);
+    analogWrite(11, LOW);
+
+    // -----------  Does a 1sec flash of the onboard LED  -----------
+    // -----------  to signal that setup ran properly  -----------
 
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
     delay(1000);
     digitalWrite(13, LOW);
-
 }
 
-void loop() {
-    if (!dmpReady) {
-      digitalWrite(13, HIGH);
-      delay(50);
-      digitalWrite(13, LOW);
-      delay(50);
-      return;
-    }
+// -----------  Main Code Loop  -----------
 
-    while (!mpuInterrupt && fifoCount < packetSize)
+void loop()
+{
+    if (!dmpReady)      // checks if dmp is working. If not, onboard LED blinks rapidly
     {
-        pid.Compute();   
-     
-        if (input>150 && output < 210){//If the Bot is falling 
-          if (output>0) {//Falling towards front 
-            Forward(); //Rotate the wheels forward 
-          }
-  
-          else if (output<0) {//Falling towards back
-            Reverse(); //Rotate the wheels backward 
-          }
+        digitalWrite(13, HIGH);
+        delay(50);
+        digitalWrite(13, LOW);
+        delay(50);
+        return;
+    }
+
+    while (!mpuInterrupt && fifoCount < packetSize)     // While there's no new data, run this
+    {
+        pid.Compute();      // Computes PID
+
+        Atenuate();     // Fixes output values
+
+        if (input > 150 && output < 210)    // Turns the motors if the robot is in a reasonable position to do so
+        {
+            if (output > 0)
+            {
+                Forward();
+            }
+
+            else if (output < 0)
+            {
+                Reverse();
+            }
         }
 
-        else {//If Bot not falling
-          Stop(); //Hold the wheels still
+        else
+        {
+            Stop();
         }
     }
 
-    mpuInterrupt = false;
-    mpuIntStatus = mpu.getIntStatus();
+    mpuInterrupt = false;   // sets interrupt flag to false
+    mpuIntStatus = mpu.getIntStatus();  // gets interrupt status
 
-    fifoCount = mpu.getFIFOCount();
- 
-    if ((mpuIntStatus & 0x10) || fifoCount == 1024)
+    fifoCount = mpu.getFIFOCount();     // gets size of FIFO
 
+    if ((mpuIntStatus & 0x10) || fifoCount == 1024)     // If interrupt hits or fifo size maxes out, reset FIFO
     {
         mpu.resetFIFO();
     }
 
-    else if (mpuIntStatus & 0x02)
+    else if (mpuIntStatus & 0x02)   
     {
-        // wait for correct available data length, should be a VERY short wait
-        while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
-     
-        mpu.getFIFOBytes(fifoBuffer, packetSize);
+        // wait until data length is the correct size
+        while (fifoCount < packetSize) {
+            fifoCount = mpu.getFIFOCount();
+        }
+
+        mpu.getFIFOBytes(fifoBuffer, packetSize);   // gets data
         fifoCount -= packetSize;
 
-        mpu.dmpGetQuaternion(&q, fifoBuffer); //get value for q
-        mpu.dmpGetGravity(&gravity, &q); //get value for gravity
-        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity); //get value for ypr
+        mpu.dmpGetQuaternion(&q, fifoBuffer);      // get value for q
+        mpu.dmpGetGravity(&gravity, &q);           // get value for gravity
+        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity); // get value for ypr
 
-        input = ypr[1] * 180/M_PI + 180;
-   }
+        input = ypr[1] * 180 / M_PI + 180;      // Calculates the current angle of the robot, and sets it as the PID input
+    }
 }
 
 
-void Reverse() //Code to rotate the wheel forward 
+
+void Atenuate()     // Atenuates the motor to always give it a baseline current
 {
-    analogWrite(13, output*-1);
-    analogWrite(6,output*-1);
-    analogWrite(9,0);
-    analogWrite(10,0);
-    analogWrite(11,output*-1);
-}
-void Forward() //Code to rotate the wheel Backward  
-{
-    analogWrite(6,0);
-    analogWrite(9,output);
-    analogWrite(10,output);
-    analogWrite(11,0); 
+    if (output > 0) {
+            move = output + atenuation;
+            if (move > 255)
+            {
+                move = 255;
+            }
+        }
+        else if (output < 0)
+        {
+            move = output - atenuation;
+            if (move < -255)
+            {
+                move = -255;
+            }
+        }
 }
 
-void Stop() //Code to stop both the wheels
+void Reverse() // Rotates backward
 {
-    analogWrite(6,0);
-    analogWrite(9,0);
-    analogWrite(10,0);
-    analogWrite(11,0); 
+    analogWrite(13, move * -1);
+    analogWrite(6, move * -1);
+    analogWrite(9, 0);
+    analogWrite(10, 0);
+    analogWrite(11, move * -1);
+}
+void Forward() // Rotates forward
+{
+    analogWrite(6, 0);
+    analogWrite(9, move);
+    analogWrite(10, move);
+    analogWrite(11, 0);
+}
+
+void Stop() // Stop wheels
+{
+    analogWrite(6, 0);
+    analogWrite(9, 0);
+    analogWrite(10, 0);
+    analogWrite(11, 0);
 }
