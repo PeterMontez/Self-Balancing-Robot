@@ -19,15 +19,15 @@ float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container and gravit
 
 // -----------  PID CONTROL / MOTOR ATENUATION  -----------
 
-double setpoint = 179; // Angle in wich the robot stays perfectly ballanced
+double setpoint = 179.6; // Angle in wich the robot stays perfectly ballanced
 
 double Kp = 14; // Proporcional constant
 
-double Kd = 0.005; // Derivative constant
+double Kd = 0.65; // Derivative constant
 
-double Ki = 9; // Integral constant
+double Ki = 100; // Integral constant
 
-double atenuation = 5;  // Baseline power to the motors
+double atenuation = 10;  // Baseline power to the motors
 
 // -----------  PID declaration  -----------
 
@@ -48,6 +48,8 @@ void dmpDataReady()
 
 void setup()
 {
+    Serial.begin(115200);
+
     mpu.initialize();   // initializes the sensor
 
     while (mpu.dmpInitialize() != 0)    // keeps trying to init the sensor until it works
@@ -130,8 +132,13 @@ void loop()
 
         Atenuate();     // Fixes output values
 
-        if (input > 150 && output < 210)    // Turns the motors if the robot is in a reasonable position to do so
+        Serial.print(move);
+        Serial.print(",");
+        Serial.println(input);
+
+        if (input > 150 && input < 210)    // Turns the motors if the robot is in a reasonable position to do so
         {
+
             if (output > 0)
             {
                 Forward();
@@ -175,6 +182,7 @@ void loop()
 
         input = ypr[1] * 180 / M_PI + 180;      // Calculates the current angle of the robot, and sets it as the PID input
     }
+
 }
 
 
